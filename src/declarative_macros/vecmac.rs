@@ -18,7 +18,7 @@ macro_rules! avec {
     }};
 
     (@COUNT; $($element:expr),*) => {
-        <[()]>::len(&[$($crate::avec![@SUBST; $element]),*]);
+        <[()]>::len(&[$($crate::avec![@SUBST; $element]),*])
     };
 
     (@SUBST; $_element:expr) => {
