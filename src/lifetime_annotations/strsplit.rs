@@ -1,5 +1,6 @@
 //!
 // #![warn(missing_debug_implementations)]
+#![allow(dead_code)]
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct StrSplit<'haystack, D> {
