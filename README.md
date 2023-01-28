@@ -9,6 +9,7 @@
 - Iterators
 - Smart Pointers and Interior Mutability
 - Channels
+- Subtyping and Variance 
 
 
 
