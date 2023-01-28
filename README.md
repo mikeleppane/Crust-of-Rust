@@ -5,6 +5,10 @@
 ### ToC
 
 - Lifetime Annotations
+- Declarative Macros
+- Iterators
+- Smart Pointers and Interior Mutability
+- Channels
 
 
 
