@@ -10,7 +10,8 @@
 - Smart Pointers and Interior Mutability
 - Channels
 - Subtyping and Variance 
-
+- Atomics and Memory Ordering
+- Dispatch and Fat Pointers
 
 
 ### [Jon's YouTube channel](https://www.youtube.com/@JonGjengset/videos)
