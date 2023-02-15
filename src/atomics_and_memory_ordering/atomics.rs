@@ -20,17 +20,24 @@ impl<T> MyMutex<T> {
     }
 
     fn with_lock<R>(&self, f: impl FnOnce(&mut T) -> R) -> R {
-        while self.locked.load(Ordering::Relaxed) != UNLOCKED {}
+        while self
+            .locked
+            .compare_exchange_weak(UNLOCKED, LOCKED, Ordering::Acquire, Ordering::Relaxed)
+            .is_err()
+        {
+            while self.locked.load(Ordering::Relaxed) == LOCKED {}
+        }
         self.locked.store(LOCKED, Ordering::Relaxed);
         // SAFETY: we hold the lock
         let ret = f(unsafe { &mut *self.v.get() });
-        self.locked.store(UNLOCKED, Ordering::Relaxed);
+        self.locked.store(UNLOCKED, Ordering::Release);
         ret
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::AtomicUsize;
     use std::thread::spawn;
 
     use pretty_assertions::assert_eq;
@@ -39,20 +46,69 @@ mod tests {
 
     #[test]
     fn it_works() {
-        // let l = Box::leak(Box::new(MyMutex::new(0)));
-        // let handles: Vec<_> = (0..10)
-        //     .map(|_| {
-        //         spawn(move || {
-        //             for _ in 0..100 {
-        //                 l.with_lock(|v| {
-        //                     *v += 1;
-        //                 })
-        //             }
-        //         })
-        //     })
-        //     .collect();
-        // for handle in handles {
-        //     handle.join().unwrap();
-        // }
+        let l: &'static _ = Box::leak(Box::new(MyMutex::new(0)));
+        let handles: Vec<_> = (0..100)
+            .map(|_| {
+                spawn(move || {
+                    for _ in 0..1000 {
+                        l.with_lock(|v| *v += 1)
+                    }
+                })
+            })
+            .collect();
+        for handle in handles {
+            handle.join().unwrap();
+        }
+        assert_eq!(l.with_lock(|v| *v), 100 * 1000)
+    }
+
+    #[test]
+    fn too_relaxed() {
+        let x: &'static _ = Box::leak(Box::new(AtomicUsize::new(0)));
+        let y: &'static _ = Box::leak(Box::new(AtomicUsize::new(0)));
+        let t1 = spawn(move || {
+            let r1 = y.load(Ordering::Acquire);
+            x.store(r1, Ordering::Release);
+            r1
+        });
+        let t2 = spawn(move || {
+            let r2 = x.load(Ordering::Acquire);
+            y.store(42, Ordering::Release);
+            r2
+        });
+
+        let r1 = t1.join().unwrap();
+        let r2 = t2.join().unwrap();
+
+        assert_eq!(r1, r2)
+    }
+
+    #[test]
+    fn mutex_test() {
+        let x: &'static _ = Box::leak(Box::new(AtomicBool::new(false)));
+        let y: &'static _ = Box::leak(Box::new(AtomicBool::new(false)));
+        let z: &'static _ = Box::leak(Box::new(AtomicUsize::new(0)));
+        spawn(move || {
+            x.store(true, Ordering::SeqCst);
+        });
+        spawn(move || {
+            y.store(true, Ordering::SeqCst);
+        });
+        let t1 = spawn(move || {
+            while !x.load(Ordering::SeqCst) {}
+            if y.load(Ordering::SeqCst) {
+                z.fetch_add(1, Ordering::Relaxed);
+            }
+        });
+        let t2 = spawn(move || {
+            while !y.load(Ordering::SeqCst) {}
+            if x.load(Ordering::SeqCst) {
+                z.fetch_add(1, Ordering::Relaxed);
+            }
+        });
+        t1.join().unwrap();
+        t2.join().unwrap();
+        let z = z.load(Ordering::SeqCst);
+        assert_eq!(z, 2)
     }
 }

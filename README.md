@@ -12,6 +12,7 @@
 - Subtyping and Variance 
 - Atomics and Memory Ordering
 - Dispatch and Fat Pointers
+- Functions, Closures and Their Traits
 
 
 ### [Jon's YouTube channel](https://www.youtube.com/@JonGjengset/videos)
